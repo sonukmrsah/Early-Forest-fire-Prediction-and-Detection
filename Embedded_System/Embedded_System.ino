@@ -1,3 +1,4 @@
+#include <TinyGPSPlus.h>
 #include "DHT.h"
 #include <WiFi.h>
 #include <Firebase_ESP_Client.h> 
@@ -17,15 +18,17 @@ FirebaseConfig config;
 unsigned long sendDataPrevMillis = 0;
 bool signupOK = false;
 
-
-
+#define AO_PIN 35
+#define DHTPIN 14
 #define DHTTYPE DHT11
+#define smoke 27
 
-
+TinyGPSPlus gps;
 DHT dht(DHTPIN, DHTTYPE);
 
 void setup() {
   Serial.begin(115200);
+  delay(3000);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   Serial.print("Connecting to Wi-Fi");
   while (WiFi.status() != WL_CONNECTED){
@@ -54,13 +57,12 @@ void setup() {
   Firebase.begin(&config, &auth);
   Firebase.reconnectWiFi(true);
   
-  // pinMode(AO_PIN,INPUT);
+  pinMode(AO_PIN,INPUT);
   dht.begin();
 }
 
 void DHT_11(){
   delay(2000);
-
   // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
   float h = dht.readHumidity();
   // Read temperature as Celsius (the default)
@@ -85,41 +87,43 @@ void DHT_11(){
   }
 }
 
+void flame(){
+  int infrared_value = analogRead(AO_PIN);
+  infrared_value = map(infrared_value, 0, 4095, 0, 100);
+  Serial.print("The AO value: ");
+  Serial.println(infrared_value);
 
+  if (Firebase.RTDB.setFloat(&fbdo, "Flame_Sensor/Infrared_Value", infrared_value)){
+    Serial.println("PASSED");
+    Serial.println("PATH" + fbdo.dataPath());
+    Serial.println("TYPE: " + fbdo.dataType());
+  }
+  else {
+    Serial.println("FAILED");
+    Serial.println("REASON: " + fbdo.errorReason());
+  }
+}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+void Smoke() {
+  int value = analogRead(smoke);
+  // value = map(value, 0, 4095, 0, 100);
+  Serial.print("Smoke: ");
+  Serial.println(value);
+  if (Firebase.RTDB.setFloat(&fbdo, "Smoke_Sensor/Smoke_value", value)){
+    Serial.println("PASSED");
+    Serial.println("PATH" + fbdo.dataPath());
+    Serial.println("TYPE: " + fbdo.dataType());
+  }
+  else {
+    Serial.println("FAILED");
+    Serial.println("REASON: " + fbdo.errorReason());
+  }
+}
 
 
 void loop() {
-  // flame();
+  flame();
   DHT_11();
-  // Smoke();
+  Smoke();
+  // GPS();
 }
